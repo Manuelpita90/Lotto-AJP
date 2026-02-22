@@ -45,6 +45,20 @@
             position: relative;
         }
 
+        /* Estilos base para la fecha (Escritorio: Centrado absoluto) */
+        #header-date {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--acento);
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: capitalize;
+            text-shadow: 0 0 10px rgba(0, 242, 195, 0.4);
+            text-align: center;
+            line-height: 1.1;
+        }
+
         .logo-title {
             font-size: 1.8rem;
             font-weight: 700;
@@ -467,6 +481,8 @@
                 width: 100%;
                 order: 3;
                 text-align: center;
+                margin-top: 15px;
+                /* Separación vertical en móvil */
             }
 
             .header>div:nth-of-type(2) {
@@ -526,9 +542,7 @@
     <div class="header">
         <h1 class="logo-title"><i class="fas fa-chart-line"></i> Lotto<span>-AJP</span></h1>
 
-        <div id="header-date"
-            style="position: absolute; left: 50%; transform: translateX(-50%); color: var(--acento); font-size: 0.85rem; font-weight: 500; text-transform: capitalize; text-shadow: 0 0 10px rgba(0, 242, 195, 0.4); text-align: center; line-height: 1.1;">
-        </div>
+        <div id="header-date"></div>
 
         <div style="display: flex; align-items: center; gap: 15px;">
             <i id="icon-wifi" class="fas fa-wifi wifi-online" title="Estado de conexión"></i>
