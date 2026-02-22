@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lotto-AJP | Análisis Estadístico</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d0d12">
+    <link rel="apple-touch-icon" href="loteria.png">
+    <style>
+        :root {
+            --bg-main: #0d0d12;
+            --card-bg: rgba(30, 30, 46, 0.7);
+            --border-color: rgba(255, 255, 255, 0.05);
+            --text-main: #fff;
+            --text-muted: #8ba1b5;
+            --volatil: #ff3b30;
+            --equilibrio: #ff9500;
+            --estable: #00d4ff;
+            --acento: #00f2c3;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* --- CABECERA Y MENÚ --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 15px 25px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .logo-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 0;
+            letter-spacing: 1px;
+        }
+
+        .logo-title span {
+            color: var(--equilibrio);
+        }
+
+        .btn-menu {
+            background: transparent;
+            color: var(--text-main);
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 10px;
+            transition: background 0.2s;
+        }
+
+        .btn-menu:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Iconos de Estado */
+        .wifi-online {
+            color: var(--acento);
+            text-shadow: 0 0 10px rgba(0, 242, 195, 0.4);
+            transition: color 0.3s;
+        }
+
+        .wifi-offline {
+            color: var(--volatil);
+            text-shadow: 0 0 10px rgba(255, 59, 48, 0.4);
+            transition: color 0.3s;
+        }
+
+        .hora-actualizada {
+            color: var(--acento) !important;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(0, 242, 195, 0.4);
+        }
+
+        /* Menú Desplegable */
+        .dropdown {
+            position: absolute;
+            top: 70px;
+            right: 25px;
+            background: rgba(25, 25, 38, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 10px 0;
+            min-width: 200px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            opacity: 1;
+            transform: translateY(0);
+            transition: all 0.2s;
+        }
+
+        .dropdown.hidden {
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+        }
+
+        .dropdown a {
+            color: var(--text-main);
+            text-decoration: none;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .dropdown a:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--acento);
+        }
+
+        /* --- ÚLTIMO SORTEO --- */
+        .last-draw-banner {
+            background: linear-gradient(90deg, rgba(30, 30, 46, 1) 0%, rgba(20, 20, 30, 1) 100%);
+            border-left: 5px solid var(--acento);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 1.2rem;
+        }
+
+        .last-draw-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--acento);
+            display: flex;
+            align-items: center;
+        }
+
+        /* --- GRID DE ESTRATEGIAS --- */
+        .strategies-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .strategy-col {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .strategy-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .strategy-header h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.2rem;
+        }
+
+        .strategy-header p {
+            margin: 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .col-volatil {
+            border-top: 4px solid var(--volatil);
+        }
+
+        .col-volatil h3 {
+            color: var(--volatil);
+        }
+
+        .col-equilibrio {
+            border-top: 4px solid var(--equilibrio);
+        }
+
+        .col-equilibrio h3 {
+            color: var(--equilibrio);
+        }
+
+        .col-estable {
+            border-top: 4px solid var(--estable);
+        }
+
+        .col-estable h3 {
+            color: var(--estable);
+        }
+
+        /* --- TARJETAS DE ANIMALES --- */
+        .animal-card {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 15px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .animal-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .animal-number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .animal-info h4 {
+            margin: 0;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+        }
+
+        .animal-info p {
+            margin: 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .animal-pct {
+            position: absolute;
+            right: 15px;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .col-volatil .animal-number,
+        .col-volatil .animal-pct {
+            color: var(--volatil);
+        }
+
+        .col-equilibrio .animal-number,
+        .col-equilibrio .animal-pct {
+            color: var(--equilibrio);
+        }
+
+        .col-estable .animal-number,
+        .col-estable .animal-pct {
+            color: var(--estable);
+        }
+
+        /* --- MODALES --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 1;
+            transition: opacity 0.2s;
+        }
+
+        .modal-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+            display: flex !important;
+        }
+
+        .modal-box {
+            background: #1e1e2f;
+            padding: 25px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+            transform: translateY(0);
+            transition: transform 0.2s;
+        }
+
+        .modal-overlay.hidden .modal-box {
+            transform: translateY(20px);
+        }
+
+        /* Lista vertical normal para el historial pequeño */
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 5px;
+            margin-top: 15px;
+        }
+
+        .results-list::-webkit-scrollbar,
+        .grid-resultados::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .results-list::-webkit-scrollbar-thumb,
+        .grid-resultados::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        .result-item {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* GRID PARA MODAL DE ESCRITORIO */
+        .grid-resultados {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            max-height: 450px;
+            overflow-y: auto;
+            padding-right: 5px;
+            margin-top: 15px;
+        }
+
+        .grid-item {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: border-color 0.2s;
+        }
+
+        .grid-item:hover {
+            border-color: var(--acento);
+        }
+
+        /* Animación de parpadeo para nuevos aciertos */
+        @keyframes blink-success {
+
+            0%,
+            100% {
+                border-color: var(--acento);
+                box-shadow: 0 0 20px rgba(0, 242, 195, 0.6);
+                background: rgba(0, 242, 195, 0.1);
+            }
+
+            50% {
+                border-color: #fff;
+                box-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
+                background: rgba(255, 255, 255, 0.2);
+            }
+        }
+
+        .blink-anim {
+            animation: blink-success 0.5s ease-in-out infinite;
+        }
+
+        /* Animación de borde parpadeante para el logo */
+        @keyframes blink-green {
+
+            0%,
+            100% {
+                border-color: var(--acento);
+                box-shadow: 0 0 15px var(--acento);
+            }
+
+            50% {
+                border-color: transparent;
+                box-shadow: none;
+            }
+        }
+
+        .img-blink {
+            border: 3px solid var(--acento);
+            animation: blink-green 2s infinite;
+        }
+
+        /* Pantalla de bienvenida (Splash Screen) */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-main);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease-out;
+        }
+
+        /* Animación de latido para el logo del splash */
+        @keyframes heartbeat {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 30px rgba(0, 242, 195, 0.3);
+            }
+
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 0 50px rgba(0, 242, 195, 0.6);
+            }
+
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 30px rgba(0, 242, 195, 0.3);
+            }
+        }
+
+        .logo-pulse {
+            animation: heartbeat 1.5s infinite ease-in-out;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="splash-screen">
+        <div style="position: relative;">
+            <img src="ajp.png" class="logo-pulse"
+                style="width: 120px; height: 120px; border-radius: 50%; border: 4px solid var(--acento); object-fit: cover;">
+        </div>
+        <h1 style="color: #fff; font-weight: 700; font-size: 2rem; margin: 20px 0 5px 0; letter-spacing: 1px;">
+            Lotto<span style="color: var(--equilibrio);">-AJP</span></h1>
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 30px;">Cargando pronósticos...</div>
+        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--acento);"></i>
+    </div>
+
+    <div class="header">
+        <h1 class="logo-title"><i class="fas fa-chart-line"></i> Lotto<span>-AJP</span></h1>
+
+        <div id="header-date"
+            style="position: absolute; left: 50%; transform: translateX(-50%); color: var(--acento); font-size: 0.85rem; font-weight: 500; text-transform: capitalize; text-shadow: 0 0 10px rgba(0, 242, 195, 0.4); text-align: center; line-height: 1.1;">
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <i id="icon-wifi" class="fas fa-wifi wifi-online" title="Estado de conexión"></i>
+            <button class="btn-menu" id="btn-toggle-menu" onclick="toggleMenu(event)"><i
+                    class="fas fa-bars"></i></button>
+        </div>
+
+        <div id="dropdown-menu" class="dropdown hidden">
+            <a href="#" onclick="abrirModalManual()"><i class="fas fa-plus"></i> Agregar Manual</a>
+            <a href="#" id="menu-sync" onclick="sincronizarDatos()"><i class="fas fa-sync-alt"></i> Sincronizar
+                Sorteos</a>
+            <div style="height: 1px; background: rgba(255,255,255,0.05); margin: 5px 0;"></div>
+            <a href="#" onclick="abrirModalResultados()"><i class="fas fa-list-ol"></i> Ver Resultados de Hoy</a>
+            <a href="#" onclick="abrirModalDatabase()"><i class="fas fa-database"></i> Ver Data Base</a>
+            <a href="#" onclick="abrirModalAcerca()"><i class="fas fa-info-circle"></i> Acerca de</a>
+        </div>
+    </div>
+
+    <div class="last-draw-banner">
+        <div>Último Sorteo Registrado:</div>
+        <div class="last-draw-number" id="lbl-ultimo-numero">--</div>
+        <div style="font-size: 1.5rem; font-weight: 600;" id="lbl-ultimo-animal">Esperando datos...</div>
+
+        <div id="box-aciertos" onclick="verDetalleAciertos()"
+            style="display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid var(--volatil); border-radius: 12px; padding: 5px 20px; margin-left: 20px; background: rgba(0,0,0,0.2); transition: all 0.3s ease; min-width: 100px; cursor: pointer;">
+            <div
+                style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 2px;">
+                Aciertos Hoy</div>
+            <div id="lbl-aciertos-count" style="font-weight: 800; font-size: 1.1rem; color: #fff;">0 Aciertos</div>
+        </div>
+
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-left: auto; transition: color 0.5s;"
+            id="lbl-ultima-hora">--:--</div>
+    </div>
+
+    <div class="strategies-grid">
+        <div class="strategy-col col-volatil">
+            <div class="strategy-header">
+                <h3><i class="fas fa-fire-alt"></i> Alta Volatilidad</h3>
+                <p>Tendencia Explosiva (Últimos 3 días)</p>
+            </div>
+            <div id="container-volatil"></div>
+        </div>
+
+        <div class="strategy-col col-equilibrio">
+            <div class="strategy-header">
+                <h3><i class="fas fa-balance-scale"></i> Equilibrio Ideal</h3>
+                <p>Tendencia Semanal (Últimos 7 días)</p>
+            </div>
+            <div id="container-equilibrio"></div>
+        </div>
+
+        <div class="strategy-col col-estable">
+            <div class="strategy-header">
+                <h3><i class="fas fa-anchor"></i> Tendencia Estable</h3>
+                <p>Racha Histórica (Últimos 14 días)</p>
+            </div>
+            <div id="container-estable"></div>
+        </div>
+    </div>
+
+    <div id="modal-manual" class="modal-overlay hidden">
+        <div class="modal-box" style="width:300px;">
+            <h3 style="margin-top:0; color:#fff; display:flex; justify-content:space-between; align-items:center;">
+                Agregar Manual <button onclick="cerrarModalManual()"
+                    style="background:none; border:none; color:#8ba1b5; cursor:pointer; font-size:1.2rem;"><i
+                        class="fas fa-times"></i></button>
+            </h3>
+
+            <label style="display:block; margin-bottom:5px; color:#8ba1b5; font-size:0.9rem;">Fecha</label>
+            <input type="date" id="in-fecha"
+                style="width:100%; padding:10px; margin-bottom:15px; background:rgba(0,0,0,0.5); border:1px solid #555; color:#fff; border-radius:10px; box-sizing:border-box;">
+
+            <label style="display:block; margin-bottom:5px; color:#8ba1b5; font-size:0.9rem;">Hora</label>
+            <select id="in-hora"
+                style="width:100%; padding:10px; margin-bottom:15px; background:rgba(0,0,0,0.5); border:1px solid #555; color:#fff; border-radius:10px; box-sizing:border-box;">
+                <option value="08:00 AM">08:00 AM</option>
+                <option value="09:00 AM">09:00 AM</option>
+                <option value="10:00 AM">10:00 AM</option>
+                <option value="11:00 AM">11:00 AM</option>
+                <option value="12:00 PM">12:00 PM</option>
+                <option value="01:00 PM">01:00 PM</option>
+                <option value="02:00 PM">02:00 PM</option>
+                <option value="03:00 PM">03:00 PM</option>
+                <option value="04:00 PM">04:00 PM</option>
+                <option value="05:00 PM">05:00 PM</option>
+                <option value="06:00 PM">06:00 PM</option>
+                <option value="07:00 PM">07:00 PM</option>
+            </select>
+
+            <label style="display:block; margin-bottom:5px; color:#8ba1b5; font-size:0.9rem;">Animal</label>
+            <select id="in-animal"
+                style="width:100%; padding:10px; margin-bottom:25px; background:rgba(0,0,0,0.5); border:1px solid #555; color:#fff; border-radius:10px; box-sizing:border-box;"></select>
+
+            <button onclick="guardarManual()"
+                style="width:100%; background:var(--acento); color:#000; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">Guardar
+                Sorteo</button>
+        </div>
+    </div>
+
+    <div id="modal-resultados" class="modal-overlay hidden">
+        <div class="modal-box" style="width: 650px;">
+            <h3
+                style="margin-top:0; color:#fff; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;">
+                <span><i class="fas fa-th" style="color:var(--equilibrio); margin-right:8px;"></i> Resultados del
+                    Día</span>
+                <button onclick="cerrarModalResultados()"
+                    style="background:none; border:none; color:#8ba1b5; cursor:pointer; font-size:1.2rem;"><i
+                        class="fas fa-times"></i></button>
+            </h3>
+            <div id="container-resultados-hoy" class="grid-resultados">
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-historial" class="modal-overlay hidden">
+        <div class="modal-box" style="width: 350px;">
+            <h3 id="historial-titulo"
+                style="margin-top:0; color:#fff; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;">
+                <span><i class="fas fa-search" style="color:var(--acento); margin-right:8px;"></i> Historial</span>
+                <button onclick="cerrarModalHistorial()"
+                    style="background:none; border:none; color:#8ba1b5; cursor:pointer; font-size:1.2rem;"><i
+                        class="fas fa-times"></i></button>
+            </h3>
+            <div id="container-historial-animal" class="results-list" style="max-height: 300px;">
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-aciertos" class="modal-overlay hidden">
+        <div class="modal-box" style="width: 350px;">
+            <h3
+                style="margin-top:0; color:#fff; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;">
+                <span><i class="fas fa-check-circle" style="color:var(--acento); margin-right:8px;"></i> Aciertos de
+                    Hoy</span>
+                <button onclick="cerrarModalAciertos()"
+                    style="background:none; border:none; color:#8ba1b5; cursor:pointer; font-size:1.2rem;"><i
+                        class="fas fa-times"></i></button>
+            </h3>
+            <div id="container-lista-aciertos" class="results-list" style="max-height: 300px;">
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-acerca" class="modal-overlay hidden">
+        <div class="modal-box" style="width: 350px; text-align: center;">
+            <h3
+                style="margin-top:0; color:#fff; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;">
+                <span><i class="fas fa-info-circle" style="color:var(--acento); margin-right:8px;"></i> Acerca de</span>
+                <button onclick="cerrarModalAcerca()"
+                    style="background:none; border:none; color:#8ba1b5; cursor:pointer; font-size:1.2rem;"><i
+                        class="fas fa-times"></i></button>
+            </h3>
+
+            <div style="margin: 25px 0;">
+                <img src="ajp.png" class="img-blink"
+                    style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; padding: 3px;">
+            </div>
+
+            <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 5px;">Lotto-AJP</div>
+            <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">Versión 1.0.0</div>
+
+            <div style="font-size: 0.85rem; color: #fff; margin-bottom: 5px;">Fecha de actualización: 22/02/2026</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px;">Desarrollado por AJP-Logic
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 25px;">Copyright © AJP-Logic</div>
+
+            <button onclick="compartirWhatsapp()"
+                style="background:#25D366; color:#fff; border:none; padding:12px 25px; border-radius:25px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; width:100%; font-size:1rem; transition: transform 0.2s;">
+                <i class="fab fa-whatsapp" style="font-size: 1.3rem;"></i> Compartir Pronósticos
+            </button>
+        </div>
+    </div>
+
+    <div id="modal-database" class="modal-overlay hidden">
+        <div class="modal-box" style="width: 300px; text-align: center;">
+            <h3
+                style="margin-top:0; color:#fff; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px;">
+                <span><i class="fas fa-cloud" style="color:var(--acento); margin-right:8px;"></i> Estado Nube</span>
+                <button onclick="cerrarModalDatabase()"
+                    style="background:none; border:none; color:#8ba1b5; cursor:pointer; font-size:1.2rem;"><i
+                        class="fas fa-times"></i></button>
+            </h3>
+            <div id="database-count-content" style="padding: 20px 0;"></div>
+            <button id="btn-download-json" onclick="descargarRespaldoJSON()"
+                style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid var(--border-color); padding:10px 20px; border-radius:10px; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:10px; transition: background 0.2s; font-size: 0.9rem;">
+                <i class="fas fa-file-download" style="color: var(--estable);"></i> Descargar Respaldo JSON
+            </button>
+            <input type="file" id="file-import-json" accept=".json" style="display: none;">
+            <button id="btn-import-json" onclick="importarRespaldoJSON()"
+                style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid var(--border-color); padding:10px 20px; border-radius:10px; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:10px; transition: background 0.2s; font-size: 0.9rem; margin-top: 10px;">
+                <i class="fas fa-file-upload" style="color: var(--equilibrio);"></i> Importar Respaldo JSON
+            </button>
+            <div id="import-progress-container" style="display: none; margin-top: 15px;">
+                <div style="background: rgba(255,255,255,0.1); border-radius: 5px; height: 6px; overflow: hidden;">
+                    <div id="import-progress-bar"
+                        style="width: 0%; height: 100%; background: var(--acento); transition: width 0.3s;"></div>
+                </div>
+                <div id="import-progress-text" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">0%
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="install-banner"
+        style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; background: rgba(30, 30, 46, 0.95); border: 1px solid var(--acento); border-radius: 15px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 3000; text-align: center; backdrop-filter: blur(10px);">
+        <div style="margin-bottom: 15px; font-weight: 600; color: #fff; font-size: 1rem;">
+            <i class="fas fa-download" style="color: var(--acento); margin-right: 8px;"></i>
+            Instala Lotto-AJP
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px; font-weight: normal;">Agrega la
+                app a tu inicio para una mejor experiencia.</div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+            <button onclick="instalarPWA()"
+                style="background: var(--acento); color: #000; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; flex: 1;">Instalar</button>
+            <button onclick="cerrarBannerInstall()"
+                style="background: rgba(255,255,255,0.1); border: 1px solid var(--border-color); color: #fff; padding: 10px 20px; border-radius: 20px; cursor: pointer; flex: 1;">Ahora
+                no</button>
+        </div>
+    </div>
+
+    <div id="modal-mensaje" class="modal-overlay hidden">
+        <div class="modal-box" style="width: 300px; text-align: center;">
+            <h3 id="mensaje-titulo" style="margin-top:0; color:#fff; margin-bottom:10px;"></h3>
+            <div id="mensaje-texto" style="color:#8ba1b5; margin-bottom:20px; font-size:0.95rem;"></div>
+            <button onclick="cerrarModalMensaje()"
+                style="background:var(--acento); color:#000; border:none; padding:10px 25px; border-radius:10px; font-weight:bold; cursor:pointer;">Aceptar</button>
+        </div>
+    </div>
+
+    <script type="module" src="renderer.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registrado con éxito:', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('Fallo al registrar Service Worker:', err);
+                    });
+            });
+        }
+    </script>
+</body>
+
+</html>

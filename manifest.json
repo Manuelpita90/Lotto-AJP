@@ -1,0 +1,21 @@
+{
+    "name": "Lotto AJP",
+    "short_name": "Lotto AJP",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#0d0d12",
+    "theme_color": "#0d0d12",
+    "description": "Analizador Estadístico Lotto AJP",
+    "icons": [
+        {
+            "src": "loteria.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "loteria.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
