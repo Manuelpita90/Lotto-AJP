@@ -446,6 +446,64 @@
         .logo-pulse {
             animation: heartbeat 1.5s infinite ease-in-out;
         }
+
+        /* Adaptación para móviles (Diseño Vertical) */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            #header-date {
+                position: static;
+                transform: none;
+                margin: 5px 0;
+            }
+
+            .header>div:last-child {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .last-draw-banner {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .last-draw-number {
+                justify-content: center;
+            }
+
+            #box-aciertos {
+                margin-left: 0;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            #lbl-ultima-hora {
+                margin-left: 0;
+            }
+
+            .strategies-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-box {
+                width: 90% !important;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+
+            .grid-resultados {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
     </style>
 </head>
 
