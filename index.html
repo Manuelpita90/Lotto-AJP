@@ -454,20 +454,23 @@
             }
 
             .header {
-                flex-direction: column;
-                gap: 15px;
-                text-align: center;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                align-items: center;
             }
 
             #header-date {
                 position: static;
                 transform: none;
                 margin: 5px 0;
+                width: 100%;
+                order: 3;
+                text-align: center;
             }
 
-            .header>div:last-child {
-                width: 100%;
-                justify-content: center;
+            .header>div:nth-of-type(2) {
+                width: auto;
             }
 
             .last-draw-banner {
