@@ -52,9 +52,12 @@ async function getResultsToday() {
     try {
         const now = new Date();
         const fechaHoy = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        const q = query(sorteosRef, where("fecha", "==", fechaHoy), orderBy("timestamp", "asc"));
+        // OPTIMIZACIÓN: Quitamos orderBy de la query para evitar error de "Missing Index" en móviles
+        const q = query(sorteosRef, where("fecha", "==", fechaHoy));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => doc.data());
+        const data = snapshot.docs.map(doc => doc.data());
+        // Ordenamos en memoria (Ascendente)
+        return data.sort((a, b) => (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0));
     } catch (e) { console.error(e); return []; }
 }
 
@@ -147,9 +150,18 @@ async function getAnimalHistory({ animal, dias }) {
         const dateLimit = new Date();
         dateLimit.setDate(dateLimit.getDate() - diasSafe);
         const dateStr = dateLimit.toISOString().split('T')[0];
-        const q = query(sorteosRef, where("animal", "==", animal), where("fecha", ">=", dateStr), orderBy("fecha", "desc"), orderBy("timestamp", "desc"));
+
+        // OPTIMIZACIÓN: Simplificamos la query para evitar índices compuestos complejos
+        const q = query(sorteosRef, where("animal", "==", animal));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => doc.data());
+
+        let data = snapshot.docs.map(doc => doc.data());
+
+        // Filtramos por fecha y ordenamos en memoria (Descendente)
+        return data
+            .filter(item => item.timestamp && item.timestamp.toDate() >= dateLimit)
+            .sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
+
     } catch (e) { return []; }
 }
 
