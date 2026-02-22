@@ -96,8 +96,10 @@ async function syncLotto() {
         params.append('loteria', 'animalitos');
         params.append('fecha', fechaHoy);
 
-        // NOTA: Esto puede fallar por CORS en navegadores móviles si el servidor destino no lo permite.
-        const response = await fetch('https://www.lottoactivo.com/core/process.php', {
+        // NOTA: Usamos un proxy CORS para evitar el error "Failed to fetch" en móviles
+        const targetUrl = 'https://www.lottoactivo.com/core/process.php';
+        // Usamos corsproxy.io que soporta POST y reenvío de cabeceras
+        const response = await fetch('https://corsproxy.io/?' + encodeURIComponent(targetUrl), {
             method: 'POST',
             body: params,
             headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
@@ -199,7 +201,17 @@ function actualizarEstadoRed() {
     }
 }
 
-window.addEventListener('online', actualizarEstadoRed);
+window.addEventListener('online', () => {
+    actualizarEstadoRed();
+    // Intentar sincronizar automáticamente al recuperar conexión
+    syncLotto().then(res => {
+        if (res && res.count > 0) {
+            reproducirNotificacion();
+            ultimoSorteoId = getSorteoId(new Date());
+            cargarTodo().then(() => resaltarHoraActualizacion());
+        }
+    }).catch(e => console.error("Error auto-sync al reconectar:", e));
+});
 window.addEventListener('offline', actualizarEstadoRed);
 
 let timerHoraActualizada = null;
