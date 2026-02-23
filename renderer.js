@@ -1033,6 +1033,10 @@ window.sincronizarDatos = async () => {
     const txt = document.getElementById('sync-status-text');
     if (modal) modal.classList.remove('hidden');
     if (bar) bar.style.width = '5%';
+    if (txt) txt.innerText = 'Iniciando...';
+
+    // Esperar un momento para que la interfaz se actualice y el usuario vea la barra
+    await new Promise(resolve => setTimeout(resolve, 300));
 
     try {
         const res = await syncLotto((msg, pct) => {
