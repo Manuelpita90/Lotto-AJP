@@ -60,3 +60,25 @@ self.addEventListener('activate', event => {
         })
     );
 });
+
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    const animal = event.notification.data ? event.notification.data.animal : null;
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+            for (const client of clientList) {
+                if ('focus' in client) {
+                    return client.focus().then(focusedClient => {
+                        if (animal && focusedClient) {
+                            focusedClient.postMessage({ action: 'verHistorial', animal: animal });
+                        }
+                    });
+                }
+            }
+            if (clients.openWindow) {
+                return clients.openWindow('./');
+            }
+        })
+    );
+});

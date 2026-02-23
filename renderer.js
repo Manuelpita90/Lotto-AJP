@@ -17,6 +17,11 @@ const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
 const sorteosRef = collection(db, "sorteos");
 
+// Helper para obtener fecha local en formato YYYY-MM-DD
+const getFechaLocal = (d = new Date()) => {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 // Helper para convertir fecha/hora string a Timestamp
 const getTimestamp = (fecha, hora) => {
     return new Date(`${fecha} ${hora}`);
@@ -27,7 +32,8 @@ async function limpiarDatosAntiguos() {
     try {
         const fechaLimite = new Date();
         fechaLimite.setMonth(fechaLimite.getMonth() - 3);
-        const fechaLimiteStr = fechaLimite.toISOString().split('T')[0];
+        const fechaLimiteStr = getFechaLocal(fechaLimite);
+
         const q = query(sorteosRef, where("fecha", "<", fechaLimiteStr));
         const snapshot = await getDocs(q);
         if (!snapshot.empty) {
@@ -50,8 +56,7 @@ async function getLastResult() {
 
 async function getResultsToday() {
     try {
-        const now = new Date();
-        const fechaHoy = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const fechaHoy = getFechaLocal();
         // OPTIMIZACIÓN: Quitamos orderBy de la query para evitar error de "Missing Index" en móviles
         const q = query(sorteosRef, where("fecha", "==", fechaHoy));
         const snapshot = await getDocs(q);
@@ -66,7 +71,8 @@ async function getStrategies() {
     const getTopForDays = async (days) => {
         const dateLimit = new Date();
         dateLimit.setDate(dateLimit.getDate() - days);
-        const dateStr = dateLimit.toISOString().split('T')[0];
+        const dateStr = getFechaLocal(dateLimit);
+
         const q = query(sorteosRef, where("fecha", ">=", dateStr));
         const snapshot = await getDocs(q);
         const counts = {};
@@ -92,8 +98,7 @@ async function getStrategies() {
 
 async function syncLotto() {
     try {
-        const now = new Date();
-        const fechaHoy = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const fechaHoy = getFechaLocal();
         const params = new URLSearchParams();
         params.append('option', 'XzlPR2tleGRub1ZBSXlWdVJLbzJfZyRJZTd5TXZRb0VvRFRYQnZodm1YVXprMDlKaWlwY2p0VjZHWnZvYTh5ak9lZ2ZWOEdWckN3eDU0ejRyQ1E1TnhL');
         params.append('loteria', 'animalitos');
@@ -110,25 +115,35 @@ async function syncLotto() {
         if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
         const data = await response.json();
         let guardados = 0;
+        let ultimoAnimal = "";
         if (data.datos && Array.isArray(data.datos)) {
             const lottoActivo = data.datos.find(d => d.name && d.name.toLowerCase().includes('lotto activo'));
             if (lottoActivo && lottoActivo.resultados) {
+                // OPTIMIZACIÓN: Cargar lo que ya existe hoy para comparar en memoria y evitar duplicados
+                // Esto evita problemas de índices compuestos y reduce lecturas a la base de datos
+                const qHoy = query(sorteosRef, where("fecha", "==", fechaHoy));
+                const snapshotHoy = await getDocs(qHoy);
+                const horasRegistradas = new Set();
+                snapshotHoy.forEach(doc => horasRegistradas.add(doc.data().hora));
+
                 for (const res of lottoActivo.resultados) {
+                    // Si la hora ya existe en memoria, saltamos
+                    if (horasRegistradas.has(res.time_s)) continue;
+
                     const animalNombre = res.name_animal.charAt(0).toUpperCase() + res.name_animal.slice(1).toLowerCase();
-                    const q = query(sorteosRef, where("fecha", "==", fechaHoy), where("hora", "==", res.time_s));
-                    const snapshot = await getDocs(q);
-                    if (snapshot.empty) {
-                        await addDoc(sorteosRef, {
-                            fecha: fechaHoy, hora: res.time_s, numero: res.number_animal, animal: animalNombre,
-                            timestamp: Timestamp.fromDate(getTimestamp(fechaHoy, res.time_s))
-                        });
-                        guardados++;
-                    }
+
+                    await addDoc(sorteosRef, {
+                        fecha: fechaHoy, hora: res.time_s, numero: res.number_animal, animal: animalNombre,
+                        timestamp: Timestamp.fromDate(getTimestamp(fechaHoy, res.time_s))
+                    });
+                    horasRegistradas.add(res.time_s); // Evitar duplicados en la misma respuesta
+                    guardados++;
+                    ultimoAnimal = animalNombre;
                 }
             }
         }
         if (guardados > 0) limpiarDatosAntiguos();
-        return { success: true, count: guardados, fecha: fechaHoy };
+        return { success: true, count: guardados, fecha: fechaHoy, ultimoAnimal };
     } catch (error) { throw new Error(error.message); }
 }
 
@@ -149,7 +164,7 @@ async function getAnimalHistory({ animal, dias }) {
         const diasSafe = parseInt(dias) || 0;
         const dateLimit = new Date();
         dateLimit.setDate(dateLimit.getDate() - diasSafe);
-        const dateStr = dateLimit.toISOString().split('T')[0];
+        // Nota: dateStr ya no se usa en la query optimizada, pero si se necesitara: getFechaLocal(dateLimit)
 
         // OPTIMIZACIÓN: Simplificamos la query para evitar índices compuestos complejos
         const q = query(sorteosRef, where("animal", "==", animal));
@@ -198,6 +213,15 @@ window.addEventListener('appinstalled', () => {
     document.getElementById('install-banner').style.display = 'none';
 });
 
+// Escuchar mensajes del Service Worker (clic en notificación)
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.action === 'verHistorial' && event.data.animal) {
+            if (window.verHistorial) window.verHistorial(event.data.animal, 30);
+        }
+    });
+}
+
 // ==========================================
 // 1. FUNCIONES DE ESTADO (WiFi y Brillo)
 // ==========================================
@@ -218,7 +242,7 @@ window.addEventListener('online', () => {
     // Intentar sincronizar automáticamente al recuperar conexión
     syncLotto().then(res => {
         if (res && res.count > 0) {
-            reproducirNotificacion();
+            reproducirNotificacion(res.count, res.ultimoAnimal);
             ultimoSorteoId = getSorteoId(new Date());
             cargarTodo().then(() => resaltarHoraActualizacion());
         }
@@ -258,9 +282,39 @@ function actualizarFechaCabecera() {
     if (el) el.innerHTML = `${fechaStr}<div style="font-family: monospace; font-size: 1.4em; font-weight: 700; margin-top: 2px;">${hours}:${strMinutes}<span style="opacity: 0.6;">:${strSeconds}</span> ${ampm}</div>`;
 }
 
-function reproducirNotificacion() {
+function reproducirNotificacion(cantidad = 0, animal = "") {
     const audio = new Audio('notification.mp3');
     audio.play().catch(e => console.log("Audio no reproducido (interacción requerida o archivo faltante):", e));
+
+    // Notificación Visual (Push Local)
+    if ("Notification" in window && Notification.permission === "granted") {
+        let msg = cantidad > 0 ? `¡Han salido ${cantidad} nuevos resultados!` : "¡Nuevos resultados disponibles!";
+
+        if (cantidad === 1 && animal) {
+            msg = `¡Salió el ${animal}!`;
+        } else if (cantidad > 1 && animal) {
+            msg = `¡Han salido ${cantidad} nuevos resultados! (Último: ${animal})`;
+        }
+
+        const options = {
+            body: msg,
+            icon: 'loteria.png',
+            vibrate: [200, 100, 200],
+            tag: 'lotto-update',
+            data: { animal: animal } // Guardamos el animal para usarlo al hacer clic
+        };
+
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(reg => reg.showNotification("Lotto-AJP", options));
+        } else {
+            const notif = new Notification("Lotto-AJP", options);
+            notif.onclick = () => {
+                window.focus();
+                if (animal && window.verHistorial) window.verHistorial(animal, 30);
+                notif.close();
+            };
+        }
+    }
 }
 
 // ==========================================
@@ -282,8 +336,7 @@ window.cerrarMenu = () => {
 window.abrirModalManual = () => {
     cerrarMenu();
     const d = new Date();
-    const hoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    document.getElementById('in-fecha').value = hoy;
+    document.getElementById('in-fecha').value = getFechaLocal(d);
     document.getElementById('modal-manual').classList.remove('hidden');
 };
 
@@ -770,9 +823,21 @@ async function cargarEstrategias() {
             }).join('');
         };
 
+        // Función auxiliar para obtener fecha formateada
+        const getStartDateStr = (days) => {
+            const d = new Date();
+            d.setDate(d.getDate() - days);
+            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+        };
+
         renderColumn('container-volatil', strats.volatil, 3);
+        if (document.getElementById('info-volatil')) document.getElementById('info-volatil').innerHTML = `<i class="far fa-calendar-check"></i> Datos desde: ${getStartDateStr(3)}`;
+
         renderColumn('container-equilibrio', strats.equilibrio, 7);
+        if (document.getElementById('info-equilibrio')) document.getElementById('info-equilibrio').innerHTML = `<i class="far fa-calendar-check"></i> Datos desde: ${getStartDateStr(7)}`;
+
         renderColumn('container-estable', strats.estable, 14);
+        if (document.getElementById('info-estable')) document.getElementById('info-estable').innerHTML = `<i class="far fa-calendar-check"></i> Datos desde: ${getStartDateStr(14)}`;
 
     } catch (e) {
         alert("Error cargando estrategias: " + e.message);
@@ -881,6 +946,12 @@ function getSorteoId(dateObj) {
 
 window.sincronizarDatos = async () => {
     cerrarMenu();
+
+    // Solicitar permiso para notificaciones si aún no se tiene (requiere interacción del usuario)
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+    }
+
     const menuSync = document.getElementById('menu-sync');
     const originalText = menuSync.innerHTML;
     menuSync.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
@@ -889,7 +960,7 @@ window.sincronizarDatos = async () => {
     try {
         const res = await syncLotto();
         if (res.count > 0) {
-            reproducirNotificacion();
+            reproducirNotificacion(res.count, res.ultimoAnimal);
             ultimoSorteoId = getSorteoId(new Date());
             await cargarTodo();
             resaltarHoraActualizacion();
@@ -918,7 +989,7 @@ function iniciarAutoSync() {
             ultimoMinuto = min;
             syncLotto().then(res => {
                 if (res && res.count > 0) {
-                    reproducirNotificacion();
+                    reproducirNotificacion(res.count, res.ultimoAnimal);
                     ultimoSorteoId = currentId;
                     cargarTodo().then(() => resaltarHoraActualizacion());
                 }
