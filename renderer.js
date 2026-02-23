@@ -96,13 +96,15 @@ async function getStrategies() {
     } catch (e) { return strategies; }
 }
 
-async function syncLotto() {
+async function syncLotto(onProgress) {
     try {
         const fechaHoy = getFechaLocal();
         const params = new URLSearchParams();
         params.append('option', 'XzlPR2tleGRub1ZBSXlWdVJLbzJfZyRJZTd5TXZRb0VvRFRYQnZodm1YVXprMDlKaWlwY2p0VjZHWnZvYTh5ak9lZ2ZWOEdWckN3eDU0ejRyQ1E1TnhL');
         params.append('loteria', 'animalitos');
         params.append('fecha', fechaHoy);
+
+        if (onProgress) onProgress("Conectando con servidor...", 10);
 
         // NOTA: Usamos un proxy CORS para evitar el error "Failed to fetch" en móviles
         const targetUrl = 'https://www.lottoactivo.com/core/process.php';
@@ -112,6 +114,9 @@ async function syncLotto() {
             body: params,
             headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
         });
+
+        if (onProgress) onProgress("Analizando datos...", 30);
+
         if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
         const data = await response.json();
         let guardados = 0;
@@ -126,7 +131,16 @@ async function syncLotto() {
                 const horasRegistradas = new Set();
                 snapshotHoy.forEach(doc => horasRegistradas.add(doc.data().hora));
 
+                const total = lottoActivo.resultados.length;
+                let procesados = 0;
+
                 for (const res of lottoActivo.resultados) {
+                    procesados++;
+                    if (onProgress) {
+                        const pct = 30 + Math.round((procesados / total) * 60); // 30% a 90%
+                        onProgress(`Procesando ${res.time_s}...`, pct);
+                    }
+
                     // Si la hora ya existe en memoria, saltamos
                     if (horasRegistradas.has(res.time_s)) continue;
 
@@ -142,6 +156,7 @@ async function syncLotto() {
                 }
             }
         }
+        if (onProgress) onProgress("Finalizando...", 100);
         if (guardados > 0) limpiarDatosAntiguos();
         return { success: true, count: guardados, fecha: fechaHoy, ultimoAnimal };
     } catch (error) { throw new Error(error.message); }
@@ -539,6 +554,63 @@ window.cerrarModalHistorial = () => {
     document.getElementById('modal-historial').classList.add('hidden');
 };
 
+window.verHistorialReciente = async (animal) => {
+    try {
+        const titulo = document.getElementById('historial-titulo');
+        titulo.innerHTML = `<span><i class="fas fa-history" style="color:var(--acento); margin-right:8px;"></i> ${animal} (Últimas 5)</span>
+                            <button onclick="cerrarModalHistorial()" style="background:none; border:none; color:#8ba1b5; cursor:pointer; font-size:1.2rem;"><i class="fas fa-times"></i></button>`;
+
+        // Usamos 90 días para buscar en todo el historial disponible (la BD guarda 3 meses)
+        const resultados = await getAnimalHistory({ animal, dias: 90 });
+        const top5 = resultados.slice(0, 5); // Tomamos solo las 5 últimas
+
+        const container = document.getElementById('container-historial-animal');
+
+        if (!top5 || top5.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:20px; color:#8ba1b5; font-style:italic;">No se encontraron registros recientes.</div>`;
+        } else {
+            const num = NUMEROS_ANIMALES[(animal || '').toUpperCase()] || '??';
+            container.innerHTML = top5.map((r, index) => {
+                const [y, m, d] = r.fecha.split('-').map(Number);
+                const fechaObj = new Date(y, m - 1, d);
+                const diaSemana = fechaObj.toLocaleDateString('es-ES', { weekday: 'long' });
+                const fechaFormateada = `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+
+                // Calcular tiempo transcurrido
+                const hoy = new Date();
+                hoy.setHours(0, 0, 0, 0);
+                const diffTime = hoy - fechaObj;
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                let textoHace = diffDays === 0 ? "Hoy" : (diffDays === 1 ? "Ayer" : `Hace ${diffDays} días`);
+
+                // Estilos dinámicos para resaltar si es HOY y es el más reciente
+                let itemStyle = "justify-content: flex-start; gap: 15px; align-items: center;";
+                let badgeColor = "var(--equilibrio)";
+
+                if (index === 0 && diffDays === 0) {
+                    itemStyle += " border: 1px solid var(--acento); background: rgba(0, 242, 195, 0.15); box-shadow: 0 0 10px rgba(0, 242, 195, 0.1);";
+                    badgeColor = "var(--acento)";
+                }
+
+                return `
+                <div class="result-item" style="${itemStyle}">
+                    <img src="img/animales/${num}.png" style="width:35px; height:35px; border-radius:50%;" onerror="this.style.display='none'">
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="color:#fff; font-size:0.95rem; font-weight:600; text-transform: capitalize;">
+                            ${diaSemana} 
+                            <span style="font-size:0.75rem; color:${badgeColor}; font-weight:bold; margin-left: 5px;">${textoHace}</span>
+                        </span>
+                        <span style="color:var(--text-muted); font-size:0.85rem;">${fechaFormateada} - ${r.hora}</span>
+                    </div>
+                </div>
+            `}).join('');
+        }
+        document.getElementById('modal-historial').classList.remove('hidden');
+    } catch (e) {
+        alert("Error cargando historial: " + e.message);
+    }
+};
+
 window.verDetalleAciertos = () => {
     if (!listaAciertos || listaAciertos.length === 0) {
         mostrarMensaje('Sin Aciertos', 'Aún no hay aciertos registrados hoy.');
@@ -734,11 +806,14 @@ async function cargarUltimoSorteo() {
         const ultimo = await getLastResult();
         if (ultimo) {
             const num = NUMEROS_ANIMALES[(ultimo.animal || '').toUpperCase()] || '??';
+            const safeAnimal = ultimo.animal.replace(/'/g, "\\'");
             document.getElementById('lbl-ultimo-numero').innerHTML = `
-                <img src="img/animales/${num}.png" style="width:45px; height:45px; margin-right:10px; border-radius:10px; box-shadow: 0 4px 10px rgba(0, 242, 195, 0.3);" onerror="this.style.display='none'">
-                ${num}
+                <div onclick="verHistorialReciente('${safeAnimal}')" style="cursor: pointer; display: flex; align-items: center;">
+                    <img src="img/animales/${num}.png" style="width:45px; height:45px; margin-right:10px; border-radius:10px; box-shadow: 0 4px 10px rgba(0, 242, 195, 0.3);" onerror="this.style.display='none'">
+                    ${num}
+                </div>
             `;
-            document.getElementById('lbl-ultimo-animal').innerText = ultimo.animal;
+            document.getElementById('lbl-ultimo-animal').innerHTML = `<span onclick="verHistorialReciente('${safeAnimal}')" style="cursor: pointer; border-bottom: 1px dotted rgba(255,255,255,0.3);">${ultimo.animal}</span>`;
             document.getElementById('lbl-ultima-hora').innerText = `Hoy, ${ultimo.hora}`;
         } else {
             document.getElementById('lbl-ultimo-animal').innerText = "Sin registros. Sincroniza o agrega manual.";
@@ -952,13 +1027,21 @@ window.sincronizarDatos = async () => {
         Notification.requestPermission();
     }
 
-    const menuSync = document.getElementById('menu-sync');
-    const originalText = menuSync.innerHTML;
-    menuSync.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
-    menuSync.style.pointerEvents = 'none';
+    // Mostrar Modal de Progreso
+    const modal = document.getElementById('modal-sync');
+    const bar = document.getElementById('sync-progress-bar');
+    const txt = document.getElementById('sync-status-text');
+    if (modal) modal.classList.remove('hidden');
+    if (bar) bar.style.width = '5%';
 
     try {
-        const res = await syncLotto();
+        const res = await syncLotto((msg, pct) => {
+            if (bar) bar.style.width = `${pct}%`;
+            if (txt) txt.innerText = msg;
+        });
+
+        if (modal) modal.classList.add('hidden');
+
         if (res.count > 0) {
             reproducirNotificacion(res.count, res.ultimoAnimal);
             ultimoSorteoId = getSorteoId(new Date());
@@ -969,10 +1052,8 @@ window.sincronizarDatos = async () => {
             mostrarMensaje('ℹ️ Sin Novedades', 'Ya tienes todos los resultados actualizados.');
         }
     } catch (e) {
+        if (modal) modal.classList.add('hidden');
         mostrarMensaje('❌ Error', 'Error al sincronizar: ' + e);
-    } finally {
-        menuSync.innerHTML = originalText;
-        menuSync.style.pointerEvents = 'auto';
     }
 };
 
